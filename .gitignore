@@ -1,0 +1,26 @@
+# Build output
+/build/
+/.build/
+**/bin/
+**/obj/
+node_modules/
+
+# Local tools, editors, and operating-system metadata
+__pycache__/
+*.py[cod]
+.venv/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+
+# Local configuration, credentials, and logs
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.key
+*.log

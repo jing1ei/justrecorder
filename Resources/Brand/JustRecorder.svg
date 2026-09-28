@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>JustRecorder</title>
+  <desc>A frosted pink and sky-blue glass tile with an audio waveform.</desc>
+  <defs>
+    <linearGradient id="body" x1="182" y1="122" x2="822" y2="902" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE4EE"/>
+      <stop offset=".42" stop-color="#E4DDFB"/>
+      <stop offset="1" stop-color="#9EDCF7"/>
+    </linearGradient>
+    <radialGradient id="rose" cx="0" cy="0" r="1" gradientTransform="translate(270 290) rotate(45) scale(480)">
+      <stop stop-color="#FFB8D8" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#FFCAE1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="0" cy="0" r="1" gradientTransform="translate(756 754) rotate(180) scale(520)">
+      <stop stop-color="#74C9F1" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#B8E8FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="225" y1="83" x2="803" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".98"/>
+      <stop offset=".48" stop-color="white" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#569DD9" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="354" y1="270" x2="670" y2="796" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".67"/>
+      <stop offset=".56" stop-color="white" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#DDF5FF" stop-opacity=".52"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="350" y1="225" x2="712" y2="788" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white"/>
+      <stop offset=".52" stop-color="white" stop-opacity=".2"/>
+      <stop offset="1" stop-color="white" stop-opacity=".85"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="340" y1="342" x2="670" y2="674" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6572C0"/>
+      <stop offset=".48" stop-color="#748FCF"/>
+      <stop offset="1" stop-color="#4A99CB"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="220" y1="92" x2="700" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".75"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="tileShadow" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="19" flood-color="#546DAA" flood-opacity=".2"/>
+    </filter>
+    <filter id="discShadow" x="186" y="180" width="670" height="690" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" stdDeviation="17" flood-color="#596FAF" flood-opacity=".2"/>
+    </filter>
+    <filter id="waveShadow" x="270" y="300" width="480" height="440" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="white" flood-opacity=".85"/>
+    </filter>
+    <clipPath id="tile"><rect x="72" y="72" width="880" height="880" rx="202"/></clipPath>
+  </defs>
+  <g filter="url(#tileShadow)">
+    <rect x="72" y="72" width="880" height="880" rx="202" fill="url(#body)"/>
+    <g clip-path="url(#tile)">
+      <rect x="72" y="72" width="880" height="880" fill="url(#rose)"/>
+      <rect x="72" y="72" width="880" height="880" fill="url(#blue)"/>
+      <path d="M72 278C285 78 648 85 952 274V385C622 187 294 181 72 423Z" fill="url(#shine)"/>
+      <path d="M150 871C347 957 686 928 882 784" stroke="white" stroke-opacity=".23" stroke-width="17" stroke-linecap="round"/>
+    </g>
+    <rect x="76" y="76" width="872" height="872" rx="198" stroke="url(#edge)" stroke-width="8"/>
+    <path d="M119 294C119 196 193 118 291 118H464" stroke="white" stroke-opacity=".62" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g filter="url(#discShadow)">
+    <circle cx="512" cy="512" r="273" fill="url(#glass)"/>
+    <circle cx="512" cy="512" r="270" stroke="url(#rim)" stroke-width="6"/>
+    <path d="M296 421C335 327 419 279 507 281" stroke="white" stroke-opacity=".6" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g stroke="url(#wave)" stroke-width="47" stroke-linecap="round" filter="url(#waveShadow)">
+    <path d="M344 480V544"/>
+    <path d="M428 414V610"/>
+    <path d="M512 358V666"/>
+    <path d="M596 414V610"/>
+    <path d="M680 480V544"/>
+  </g>
+</svg>

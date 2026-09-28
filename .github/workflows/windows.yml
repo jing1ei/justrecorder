@@ -1,0 +1,55 @@
+name: Windows
+on:
+  workflow_call:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: win-x64
+            architecture: x64
+          - runtime: win-x86
+            architecture: x86
+          - runtime: win-arm64
+            architecture: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify packaging failure paths
+        shell: pwsh
+        run: ./Tests/test_windows_package.ps1
+      - name: Ensure Windows media codecs are available
+        if: matrix.runtime != 'win-arm64'
+        shell: pwsh
+        run: |
+          $feature = Get-WindowsFeature -Name Server-Media-Foundation
+          if (-not $feature.Installed) {
+            $result = Install-WindowsFeature -Name Server-Media-Foundation
+            if (-not $result.Success -or $result.RestartNeeded -eq 'Yes') {
+              throw 'Media Foundation could not be enabled without a restart.'
+            }
+          }
+      - name: Test and package
+        shell: pwsh
+        run: ./Windows/build.ps1 -Runtime ${{ matrix.runtime }}
+      - name: Name Windows package
+        shell: pwsh
+        run: Copy-Item "build/windows/${{ matrix.runtime }}.zip" "build/windows/JustRecorder-1.0.0-Windows-${{ matrix.architecture }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JustRecorder-1.0.0-Windows-${{ matrix.architecture }}
+          if-no-files-found: error
+          compression-level: 0
+          path: build/windows/JustRecorder-1.0.0-Windows-${{ matrix.architecture }}.zip

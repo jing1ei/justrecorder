@@ -1,0 +1,45 @@
+name: macOS
+on:
+  workflow_call:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: macos-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source package
+        run: |
+          python3 Tests/test_source_release.py
+          python3 .github/scripts/test_release.py
+      - name: Run audio and naming regressions
+        run: ./test.sh
+      - name: Build Intel and Apple silicon app
+        run: ./build.sh --universal
+      - name: Package and verify downloads
+        shell: bash
+        run: |
+          python3 source-release.py
+          lipo build/JustRecorder.app/Contents/MacOS/JustRecorder -verify_arch arm64 x86_64
+          codesign --verify --strict build/JustRecorder.app
+          test -s build/JustRecorder.app/Contents/Resources/AppIcon.icns
+          ditto -c -k --keepParent build/JustRecorder.app build/JustRecorder-1.0.0-macOS-universal.zip
+          unzip -tq build/JustRecorder-1.0.0-macOS-universal.zip
+          test -n "$(find build -maxdepth 1 -name 'JustRecorder-*-source.zip' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JustRecorder-1.0.0-macOS-universal
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            build/JustRecorder-1.0.0-macOS-universal.zip
+            build/JustRecorder-*-source.zip
