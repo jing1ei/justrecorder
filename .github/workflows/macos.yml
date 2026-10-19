@@ -21,8 +21,10 @@ jobs:
         run: |
           python3 Tests/test_source_release.py
           python3 .github/scripts/test_release.py
-      - name: Run audio and naming regressions
-        run: ./test.sh
+      - name: Run audio and naming regressions (Apple silicon)
+        run: ./test.sh arm64
+      - name: Run audio and naming regressions (Intel, under Rosetta)
+        run: ./test.sh x86_64
       - name: Build Intel and Apple silicon app
         run: ./build.sh --universal
       - name: Package and verify downloads

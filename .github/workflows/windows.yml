@@ -32,8 +32,12 @@ jobs:
         run: ./Tests/test_windows_package.ps1
       - name: Ensure Windows media codecs are available
         if: matrix.runtime != 'win-arm64'
-        shell: pwsh
+        # Get-WindowsFeature / Install-WindowsFeature live in the ServerManager module,
+        # which only ships with Windows PowerShell (powershell.exe), not PowerShell 7
+        # (pwsh, the Actions default on windows runners).
+        shell: powershell
         run: |
+          Import-Module ServerManager
           $feature = Get-WindowsFeature -Name Server-Media-Foundation
           if (-not $feature.Installed) {
             $result = Install-WindowsFeature -Name Server-Media-Foundation

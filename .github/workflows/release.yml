@@ -1,10 +1,15 @@
 name: Release
+# Builds every required platform, then refreshes the public rolling 1.0.0 release
+# only after all artifacts are verified. Runs on pushes to main and on manual dispatch;
+# the publish job additionally guards on the main ref below.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
+# Never publish two builds concurrently, and do not cancel an in-flight publication
+# (it moves the v1.0.0 tag and deletes stale assets).
 concurrency:
   group: release-publish
   cancel-in-progress: false
