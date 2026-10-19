@@ -89,7 +89,7 @@ enum SourceDetector {
     /// `detectWithTimeout` blocks its caller by design, so it must never run on a Swift
     /// concurrency cooperative-pool thread (see `detectAsync`).
     private static let detectionQueue = DispatchQueue(
-        label: "com.riffapp.Riff.detection",
+        label: "com.jing1ei.JustRecorder.detection",
         qos: .userInitiated
     )
 

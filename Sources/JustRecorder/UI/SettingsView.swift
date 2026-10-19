@@ -8,7 +8,7 @@ enum JustRecorderPalette {
     static var accentNSColor: NSColor { .controlAccentColor }
 
     /// The faintest possible fill, for a block of returned text or an editor.
-    static let washNSColor = NSColor(name: "riffWash") { appearance in
+    static let washNSColor = NSColor(name: "justRecorderWash") { appearance in
         let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         return dark ? NSColor(white: 1, alpha: 0.06) : NSColor(white: 0, alpha: 0.045)
     }
@@ -19,7 +19,7 @@ extension AudioFormatKind {
     ///
     /// `displayName` carries advice ("— recommended", "— needs lame/ffmpeg") that belongs
     /// in one caption, not in every row of every list.
-    var riffLabel: String { "\(shortName) · .\(fileExtension)" }
+    var formatLabel: String { "\(shortName) · .\(fileExtension)" }
 }
 
 // MARK: - Window
@@ -483,7 +483,7 @@ private extension SettingsPanelController {
 
         formatPopUp.removeAllItems()
         for format in AudioFormatKind.allCases {
-            formatPopUp.addItem(withTitle: format.riffLabel)
+            formatPopUp.addItem(withTitle: format.formatLabel)
             // The row stays short; the advice ("— recommended", "— needs lame/ffmpeg")
             // lives in the tooltip and in the caption below instead of shouting from
             // every line. Pure string switch, no filesystem.

@@ -142,10 +142,6 @@ codesign --verify --strict "${APP_BUNDLE}"
 echo "==> Done: ${APP_BUNDLE} ($(du -sh "${APP_BUNDLE}" | cut -f1))"
 
 if [[ "${INSTALL}" -eq 1 ]]; then
-  if pgrep -x Riff >/dev/null 2>&1; then
-    echo "error: Quit the previous recorder before installing JustRecorder." >&2
-    exit 1
-  fi
   DESTINATION="/Applications/${APP_NAME}.app"
   echo "==> Installing to ${DESTINATION}…"
   if pgrep -x "${APP_NAME}" >/dev/null 2>&1; then

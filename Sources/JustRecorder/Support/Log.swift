@@ -2,7 +2,7 @@ import Foundation
 import os
 
 enum Log {
-    private static let logger = Logger(subsystem: "com.riffapp.Riff", category: "riff")
+    private static let logger = Logger(subsystem: "com.jing1ei.JustRecorder", category: "recording")
 
     static func info(_ message: String) {
         logger.info("\(message, privacy: .public)")

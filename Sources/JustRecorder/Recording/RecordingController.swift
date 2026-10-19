@@ -167,7 +167,7 @@ final class RecordingController {
         // tell a file that is still being written from one left behind by a crash.
         let tempURL = settings.saveFolderURL
             .appendingPathComponent(
-                ".riff-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString.prefix(8)).\(captureExtension)"
+                ".justrecorder-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString.prefix(8)).\(captureExtension)"
             )
 
         isStarting = true
@@ -485,8 +485,8 @@ final class RecordingController {
             releaseTarget(destination)
             Log.error("Could not rename the recording: \(error.localizedDescription)")
         }
-        // Leaving the clip as a hidden “.riff-…” temp file would make the next launch
-        // treat it as an orphan, so try once more with a neutral name.
+        // Leaving the clip as a hidden temp file would make the next launch treat it as
+        // an orphan, so try once more with a neutral name.
         let fallback = claimTarget(in: folder, baseName: fallbackBaseName, extension: ext)
         defer { releaseTarget(fallback) }
         if (try? FileManager.default.moveItem(at: producedURL, to: fallback)) != nil {
@@ -592,7 +592,12 @@ final class RecordingController {
 
     // MARK: - Recovery
 
-    /// Renames leftover `.riff-*` temp files (from a crash or a quit mid-recording).
+    /// Prefix of temp files written by this build, and the one used by the pre-rename
+    /// build so its interrupted recordings are recovered as well.
+    private static let tempFilePrefix = ".justrecorder-"
+    private static let legacyTempFilePrefix = ".riff-"
+
+    /// Renames leftover hidden temp files (from a crash or a quit mid-recording).
     func recoverOrphanedRecordings() {
         let folder = settings.saveFolderURL
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -609,7 +614,7 @@ final class RecordingController {
             includingPropertiesForKeys: nil
         ) else { return }
 
-        for url in entries where url.lastPathComponent.hasPrefix(".riff-") {
+        for url in entries where Self.isTempRecording(url) {
             if isBeingWrittenByAnotherInstance(url) {
                 Log.info("Leaving \(url.lastPathComponent) alone: another JustRecorder instance is writing it.")
                 continue
@@ -637,11 +642,25 @@ final class RecordingController {
         }
     }
 
-    /// Temp names look like `.riff-<pid>-<random>.<ext>`; a file whose PID still belongs
+    private static func isTempRecording(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        return name.hasPrefix(tempFilePrefix) || name.hasPrefix(legacyTempFilePrefix)
+    }
+
+    private static func tempPrefix(for name: String) -> String? {
+        for prefix in [tempFilePrefix, legacyTempFilePrefix] where name.hasPrefix(prefix) {
+            return prefix
+        }
+        return nil
+    }
+
+    /// Temp names look like `.<app>-<pid>-<random>.<ext>`; a file whose PID still belongs
     /// to a live JustRecorder process is in use. Names without a PID (written by an older build)
     /// are treated as orphans, as before.
     private func isBeingWrittenByAnotherInstance(_ url: URL) -> Bool {
-        let stem = url.lastPathComponent.dropFirst(".riff-".count)
+        let name = url.lastPathComponent
+        guard let prefix = Self.tempPrefix(for: name) else { return false }
+        let stem = name.dropFirst(prefix.count)
         guard let separator = stem.firstIndex(of: "-"),
               let pid = pid_t(stem[stem.startIndex..<separator]),
               pid > 0

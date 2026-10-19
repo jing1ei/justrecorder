@@ -50,7 +50,7 @@ record JustRecorder's own sounds. Windows system audio is not rerouted.
 Recording first writes an intermediate float WAV, then encodes after closing it.
 If encoding fails, the original float WAV is kept and JustRecorder displays a notification.
 Windows N editions may need the Media Feature Pack for AAC/MP3. The filename uses
-the format actually saved. A separate log is kept under `%LOCALAPPDATA%\Riff`.
+the format actually saved. A separate log is kept under `%LOCALAPPDATA%\JustRecorder`.
 
 Windows media sessions supply artist and track metadata when available. Otherwise,
 JustRecorder ranks windows using active playback sessions and the foreground window. Not all
@@ -72,9 +72,10 @@ Use Save or Done to persist edits; closing Settings also attempts to save and st
 open if validation or credential storage fails. “Discard unsaved edits” closes the
 window without retrying a failed save.
 
-Interrupted recordings remain as `.riff-*.wav` files in the save folder. WAV headers
-are flushed while capturing. On next launch, completed readable audio is recovered
-under `Recovered Snippet …`; files belonging to live processes are left alone.
+Interrupted recordings remain as `.justrecorder-*.wav` files in the save folder. WAV
+headers are flushed while capturing. On next launch, completed readable audio is
+recovered under `Recovered Snippet …`; files belonging to live processes are left
+alone, and temp files from older builds are recovered the same way.
 Unreadable files are retained for manual recovery. Quitting waits up to three seconds
 for saving and leaves unfinished intermediates for the next launch.
 

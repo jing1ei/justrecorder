@@ -9,27 +9,94 @@ namespace JustRecorder.Windows;
 
 internal static class Platform
 {
-    // Storage and credential identifiers remain stable for existing installations.
-    public static string DataFolder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Riff");
+    public const string AppName = "JustRecorder";
+    public const string LegacyAppName = "Riff";
+    public static string DataFolder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
     public static string SettingsPath => Path.Combine(DataFolder, "settings.json");
+    static string LogPath => Path.Combine(DataFolder, "justrecorder.log");
+
+    /// <summary>
+    /// One-time migration from the pre-rename build: settings folder, log, login-item
+    /// registry value and stored credential. Each step is best-effort; a failure is
+    /// logged and must never stop launch.
+    /// </summary>
+    public static void MigrateFromLegacyBuild()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var legacyFolder = Path.Combine(localAppData, LegacyAppName);
+        try
+        {
+            if (Directory.Exists(legacyFolder))
+            {
+                if (!Directory.Exists(DataFolder))
+                {
+                    Directory.Move(legacyFolder, DataFolder);
+                }
+                else
+                {
+                    // Both folders exist: copy over only the files the new folder lacks.
+                    foreach (var file in Directory.GetFiles(legacyFolder))
+                    {
+                        var target = Path.Combine(DataFolder, Path.GetFileName(file));
+                        if (!File.Exists(target)) File.Move(file, target);
+                    }
+                }
+                var oldLog = Path.Combine(DataFolder, "riff.log");
+                if (File.Exists(oldLog) && !File.Exists(LogPath))
+                {
+                    try { File.Move(oldLog, LogPath); } catch (IOException) { }
+                }
+            }
+        }
+        catch (Exception ex) { Log(ex); }
+
+        try
+        {
+            using var run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+            if (run != null)
+            {
+                if (run.GetValue(LegacyAppName) is string command && run.GetValue(AppName) is null)
+                    run.SetValue(AppName, command);
+                run.DeleteValue(LegacyAppName, false);
+            }
+        }
+        catch (Exception ex) { Log(ex); }
+
+        try
+        {
+            var legacyKey = KeyRead(LegacyCredentialTarget);
+            if (legacyKey.Length > 0 && KeyRead(CredentialTarget).Length == 0) KeyWrite(CredentialTarget, legacyKey);
+            KeyDelete(LegacyCredentialTarget);
+        }
+        catch (Exception ex) { Log(ex); }
+    }
+
     public static void Reveal(string path) { var p = new ProcessStartInfo("explorer.exe") { UseShellExecute = true }; p.ArgumentList.Add("/select," + path); Process.Start(p); }
     public static void OpenFolder(string path) { Directory.CreateDirectory(path); Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
-    public static void Log(Exception ex) { try { Directory.CreateDirectory(DataFolder); File.AppendAllText(Path.Combine(DataFolder, "riff.log"), $"{DateTime.Now:u} {ex.GetType().Name}: {ex.Message}\n"); } catch (IOException) { } }
+    public static void Log(Exception ex) { try { Directory.CreateDirectory(DataFolder); File.AppendAllText(LogPath, $"{DateTime.Now:u} {ex.GetType().Name}: {ex.Message}\n"); } catch (IOException) { } }
     public static bool LaunchAtLogin
     {
-        get { using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); return key?.GetValue("Riff") is string; }
-        set { using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); if (value) key.SetValue("Riff", $"\"{Environment.ProcessPath}\""); else key.DeleteValue("Riff", false); }
+        get { using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); return key?.GetValue(AppName) is string; }
+        set { using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); if (value) key.SetValue(AppName, $"\"{Environment.ProcessPath}\""); else key.DeleteValue(AppName, false); }
     }
-    public static string KeyRead()
+    const string CredentialTarget = "JustRecorder.AI";
+    const string LegacyCredentialTarget = "Riff.AI";
+    public static string KeyRead() => KeyRead(CredentialTarget);
+    public static void KeyWrite(string value) => KeyWrite(CredentialTarget, value);
+    static void KeyDelete(string target)
     {
-        if (!CredRead("Riff.AI", 1, 0, out var ptr)) { var error = Marshal.GetLastWin32Error(); if (error == 1168) return ""; throw new System.ComponentModel.Win32Exception(error); }
+        if (!CredDelete(target, 1, 0) && Marshal.GetLastWin32Error() != 1168) throw new System.ComponentModel.Win32Exception();
+    }
+    static string KeyRead(string target)
+    {
+        if (!CredRead(target, 1, 0, out var ptr)) { var error = Marshal.GetLastWin32Error(); if (error == 1168) return ""; throw new System.ComponentModel.Win32Exception(error); }
         try { var c = Marshal.PtrToStructure<Credential>(ptr); return Marshal.PtrToStringUni(c.Blob, (int)c.Size / 2) ?? ""; } finally { CredFree(ptr); }
     }
-    public static void KeyWrite(string value)
+    static void KeyWrite(string target, string value)
     {
-        if (value.Length == 0) { if (!CredDelete("Riff.AI", 1, 0) && Marshal.GetLastWin32Error() != 1168) throw new System.ComponentModel.Win32Exception(); return; }
+        if (value.Length == 0) { KeyDelete(target); return; }
         var bytes = Encoding.Unicode.GetBytes(value); if (bytes.Length > 2560) throw new ArgumentException("The API key is too long for Credential Manager.");
-        var ptr = Marshal.AllocHGlobal(bytes.Length); try { Marshal.Copy(bytes, 0, ptr, bytes.Length); var c = new Credential { Type = 1, Target = "Riff.AI", User = "Riff", Persist = 2, Size = (uint)bytes.Length, Blob = ptr }; if (!CredWrite(ref c, 0)) throw new System.ComponentModel.Win32Exception(); } finally { Marshal.FreeHGlobal(ptr); }
+        var ptr = Marshal.AllocHGlobal(bytes.Length); try { Marshal.Copy(bytes, 0, ptr, bytes.Length); var c = new Credential { Type = 1, Target = target, User = AppName, Persist = 2, Size = (uint)bytes.Length, Blob = ptr }; if (!CredWrite(ref c, 0)) throw new System.ComponentModel.Win32Exception(); } finally { Marshal.FreeHGlobal(ptr); }
     }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] struct Credential { public uint Flags, Type; public string Target; public string? Comment; public long LastWritten; public uint Size; public IntPtr Blob; public uint Persist, Count; public IntPtr Attributes; public string? Alias; public string User; }
     [DllImport("advapi32", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool CredRead(string target, uint type, uint flags, out IntPtr credential);

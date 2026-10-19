@@ -45,7 +45,7 @@ internal sealed class Recorder : IDisposable
         try
         {
             Directory.CreateDirectory(settings.SaveFolder); active = settings with { }; started = DateTime.Now;
-            activePath = Path.Combine(settings.SaveFolder, $".riff-{Environment.ProcessId}-{Guid.NewGuid():N}.wav");
+            activePath = Path.Combine(settings.SaveFolder, $".justrecorder-{Environment.ProcessId}-{Guid.NewGuid():N}.wav");
             detection?.Dispose(); detection = new CancellationTokenSource(TimeSpan.FromSeconds(2)); source = Detect(detection.Token, settings.PlayerMetadata);
             // Endpoint loopback includes JustRecorder: start cues are omitted to keep clips clean.
             engine.Start(active, activePath); Recording = true; clock = Stopwatch.StartNew(); Set("Recording…");
@@ -106,7 +106,11 @@ internal sealed class Recorder : IDisposable
             recovery = await Task.Run(() =>
             {
                 var recovered = 0; if (!Directory.Exists(folder)) return recovered;
-                foreach (var path in Directory.EnumerateFiles(folder, ".riff-*.wav").Where(p => !p.EndsWith(".encoded.wav", StringComparison.OrdinalIgnoreCase)))
+                var pending = Directory.EnumerateFiles(folder, ".justrecorder-*.wav")
+                    .Concat(Directory.EnumerateFiles(folder, ".riff-*.wav"))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(p => !p.EndsWith(".encoded.wav", StringComparison.OrdinalIgnoreCase));
+                foreach (var path in pending)
                 {
                     var parts = Path.GetFileName(path).Split('-');
                     if (parts.Length > 2 && int.TryParse(parts[1], out var pid)) try { using var process = Process.GetProcessById(pid); if (!process.HasExited) continue; } catch (ArgumentException) { }

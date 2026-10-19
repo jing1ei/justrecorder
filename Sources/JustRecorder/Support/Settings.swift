@@ -5,9 +5,14 @@ import AppKit
 final class Settings {
 
     /// Posted (main thread, synchronously) after any stored preference is written.
-    static let didChange = Notification.Name("com.riffapp.Riff.settingsDidChange")
+    static let didChange = Notification.Name("com.jing1ei.JustRecorder.settingsDidChange")
 
     static let shared = Settings()
+
+    /// Suite of the pre-rename build. Read once to migrate existing preferences into
+    /// the current suite so an upgrade does not reset user choices.
+    private static let legacyDefaultsSuite = "com.riffapp.Riff"
+    private static let didMigrateLegacyDefaultsKey = "didMigrateLegacyDefaults"
 
     private let d: UserDefaults
 
@@ -118,6 +123,9 @@ final class Settings {
     // MARK: - Init
 
     init(defaults: UserDefaults = .standard) {
+        if defaults === UserDefaults.standard {
+            Self.migrateLegacyDefaults(into: defaults)
+        }
         d = defaults
         saveFolder = d.string(forKey: K.saveFolder) ?? Settings.defaultSaveFolder
         format = AudioFormatKind(rawValue: d.string(forKey: K.format) ?? "") ?? .aac
@@ -154,6 +162,29 @@ final class Settings {
 
     private static func choice(_ value: Int, in choices: [Int], fallback: Int) -> Int {
         choices.contains(value) ? value : fallback
+    }
+
+    /// One-time copy of preferences left by the pre-rename build. Keys absent from the
+    /// current suite (i.e. never written by JustRecorder itself) are copied across;
+    /// existing values always win, so this can never overwrite a user's new choices.
+    private static func migrateLegacyDefaults(into defaults: UserDefaults) {
+        guard !defaults.bool(forKey: didMigrateLegacyDefaultsKey),
+              let legacy = UserDefaults(suiteName: legacyDefaultsSuite)
+        else {
+            defaults.set(true, forKey: didMigrateLegacyDefaultsKey)
+            return
+        }
+        let legacyKeys = [
+            K.saveFolder, K.format, K.aacBitrate, K.mp3Bitrate, K.sampleRate,
+            K.hotKeyCode, K.hotKeyModifiers, K.playSounds, K.showTimer,
+            K.revealAfterSave, K.autoStopMinutes, K.preRollEnabled, K.preRollSeconds,
+            K.nameTemplate, K.maxTitleLength, K.useAppleScriptMetadata,
+            K.aiEnabled, K.aiBaseURL, K.aiModel, K.aiPrompt, K.aiTimeout
+        ]
+        for key in legacyKeys where defaults.object(forKey: key) == nil {
+            defaults.set(legacy.object(forKey: key), forKey: key)
+        }
+        defaults.set(true, forKey: didMigrateLegacyDefaultsKey)
     }
 
     private static func bounded(_ value: Int?, to range: ClosedRange<Int>, fallback: Int) -> Int {

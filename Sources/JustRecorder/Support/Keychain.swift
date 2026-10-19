@@ -4,21 +4,28 @@ import Security
 /// Minimal generic-password wrapper for the LLM API key.
 enum Keychain {
 
-    // Stable identifier preserves existing credentials across product renames.
-    private static let service = "com.riffapp.Riff.aiAPIKey"
+    private static let service = "com.jing1ei.JustRecorder.aiAPIKey"
+    /// Service used by the pre-rename build; consulted once so an existing key survives.
+    private static let legacyService = "com.riffapp.Riff.aiAPIKey"
     private static let account = "default"
     private static let fallbackKey = "aiAPIKeyFallback"
 
-    private static var baseQuery: [String: Any] {
+    private static func baseQuery(for serviceName: String = service) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: account
         ]
     }
 
+    private static var baseQuery: [String: Any] { baseQuery() }
+
     static func read() -> String? {
-        var query = baseQuery
+        read(service: service)
+    }
+
+    private static func read(service serviceName: String) -> String? {
+        var query = baseQuery(for: serviceName)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -69,12 +76,17 @@ enum Keychain {
         return true
     }
 
-    /// Migrate legacy plain-text preferences into Keychain before using them.
-    /// A failed migration leaves the legacy value intact for a later retry.
+    /// Migrates credentials left behind by older builds (first the pre-rename
+    /// Keychain service, then the even older plain-text preference) before using them.
+    /// A failed migration leaves the original value intact for a later retry.
     static func readWithFallback() -> String? {
         if let value = read() {
             UserDefaults.standard.removeObject(forKey: fallbackKey)
             return value
+        }
+        if let migrated = read(service: legacyService) {
+            if write(migrated) { SecItemDelete(baseQuery(for: legacyService) as CFDictionary) }
+            return migrated
         }
         guard let legacy = UserDefaults.standard.string(forKey: fallbackKey),
               !legacy.isEmpty, write(legacy)

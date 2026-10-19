@@ -6,7 +6,7 @@ internal static class NativeChecks
 {
     public static async Task<int> Run()
     {
-        var folder = Path.Combine(Path.GetTempPath(), "riff-native-test-" + Guid.NewGuid()); Directory.CreateDirectory(folder);
+        var folder = Path.Combine(Path.GetTempPath(), "justrecorder-native-test-" + Guid.NewGuid()); Directory.CreateDirectory(folder);
         try
         {
             foreach (var kind in new[] { AudioKind.Aac, AudioKind.Mp3, AudioKind.Wav16, AudioKind.Wav24 })

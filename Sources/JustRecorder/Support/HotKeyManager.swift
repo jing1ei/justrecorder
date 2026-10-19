@@ -132,7 +132,7 @@ final class HotKeyManager {
 
     /// Posted (main queue) after every `register` attempt, successful or not, so Settings
     /// can show whether the shortcut it displays is actually live.
-    static let registrationDidChange = Notification.Name("com.riffapp.Riff.hotKeyRegistrationDidChange")
+    static let registrationDidChange = Notification.Name("com.jing1ei.JustRecorder.hotKeyRegistrationDidChange")
 
     /// Called on the main queue whenever the hotkey is pressed.
     var onTrigger: (() -> Void)?
@@ -146,7 +146,7 @@ final class HotKeyManager {
 
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
-    private let signature: OSType = 0x5249_4646 // 'RIFF'
+    private let signature: OSType = 0x4A52_4543 // 'JREC'
 
     private init() {}
 

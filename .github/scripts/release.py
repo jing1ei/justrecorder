@@ -53,7 +53,7 @@ def prepare(source, output, config):
         shutil.copyfile(path, output / name)
     source_name = f"{config['project']}-{VERSION}-source.zip"
     if source_name not in selected:
-        subprocess.run(['git', 'archive', '--format=zip', f"--prefix={config['project']}-{VERSION}/",
+        subprocess.run(['git', 'archive', '--format=zip', f"--prefix={config['project']}/",
                         '-o', str((output / source_name).resolve()), 'HEAD'], cwd=ROOT, check=True)
     files = sorted(output.iterdir())
     (output / 'SHA256SUMS.txt').write_text(''.join(f'{digest(p)}  {p.name}\n' for p in files))

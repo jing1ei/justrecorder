@@ -45,16 +45,16 @@ release require the distributor's Apple Developer credentials.
 
 ## macOS advanced preferences
 
-Quit JustRecorder before changing these values. Existing preference and credential
-identifiers are retained for upgrade compatibility.
+Quit JustRecorder before changing these values. Settings and credentials from an
+older build are migrated automatically on first launch.
 
 ```sh
-defaults write com.riffapp.Riff sampleRate -int 44100
-defaults write com.riffapp.Riff mp3BitrateKbps -int 192
-defaults write com.riffapp.Riff maxTitleLength -int 50
-defaults write com.riffapp.Riff revealAfterSave -bool YES
-defaults write com.riffapp.Riff showTimerInMenuBar -bool NO
-defaults write com.riffapp.Riff aiTimeoutSeconds -float 15
+defaults write com.jing1ei.JustRecorder sampleRate -int 44100
+defaults write com.jing1ei.JustRecorder mp3BitrateKbps -int 192
+defaults write com.jing1ei.JustRecorder maxTitleLength -int 50
+defaults write com.jing1ei.JustRecorder revealAfterSave -bool YES
+defaults write com.jing1ei.JustRecorder showTimerInMenuBar -bool NO
+defaults write com.jing1ei.JustRecorder aiTimeoutSeconds -float 15
 ```
 
 Defaults: 48000 Hz, MP3 320 kbps, title limit 70, reveal off, menu timer on,
@@ -69,10 +69,11 @@ Keep the save folder available until a clip finishes saving.
 Mac logs:
 
 ```sh
-log stream --predicate 'subsystem == "com.riffapp.Riff"' --level info
+log stream --predicate 'subsystem == "com.jing1ei.JustRecorder"' --level info
 ```
 
-Windows settings and logs: `%LOCALAPPDATA%\Riff` (stable upgrade location).
+Windows settings and logs: `%LOCALAPPDATA%\JustRecorder` (older builds used
+`%LOCALAPPDATA%\Riff`; settings are moved over on first launch).
 See the [Windows guide](../Windows/README.md) for build and runtime checks.
 
 Metadata queries run in a bounded `osascript` process. Player Automation consent

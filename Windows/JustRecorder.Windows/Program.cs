@@ -6,7 +6,8 @@ internal static class Program
     static void Main(string[] args)
     {
         if (args.Contains("--self-test")) { Environment.ExitCode = NativeChecks.Run().GetAwaiter().GetResult(); return; }
-        using var instance = new Mutex(true, @"Local\Riff.Recorder", out var created);
+        Platform.MigrateFromLegacyBuild();
+        using var instance = new Mutex(true, @"Local\JustRecorder.Recorder", out var created);
         if (!created) { MessageBox.Show("JustRecorder is already running. Open its icon in the notification area.", "JustRecorder"); return; }
         ApplicationConfiguration.Initialize();
         Application.SetColorMode(SystemColorMode.System);

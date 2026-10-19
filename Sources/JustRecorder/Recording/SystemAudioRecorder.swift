@@ -76,7 +76,7 @@ final class SystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 
     /// Sample-handler queue. ScreenCaptureKit delivers buffers here, and it owns the
     /// callback-side session state below. **Nothing on this queue may touch the disk.**
-    private let queue = DispatchQueue(label: "com.riffapp.Riff.audio", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.jing1ei.JustRecorder.audio", qos: .userInitiated)
 
     /// Serial queue that exclusively owns `writer` — file creation, every `write`, every
     /// conversion and the close. The capture callback only ever `async`s onto it, so a
@@ -137,7 +137,7 @@ final class SystemAudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     /// slow one grow the backlog for ever.
     private static let maxPendingSeconds: Double = 10
 
-    init(writerQueue: DispatchQueue = DispatchQueue(label: "com.riffapp.Riff.audio.writer", qos: .userInitiated)) {
+    init(writerQueue: DispatchQueue = DispatchQueue(label: "com.jing1ei.JustRecorder.audio.writer", qos: .userInitiated)) {
         self.writerQueue = writerQueue
         super.init()
     }

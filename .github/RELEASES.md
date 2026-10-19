@@ -5,9 +5,9 @@ public release **1.0.0** at tag `v1.0.0`. Manual runs on `main` do the same.
 All required platforms must pass before publication. This deliberately updates
 the same version instead of creating a new version for each commit.
 
-Downloads use `App-1.0.0-OS-architecture.ext`: `macOS` or `Windows`, with
-`universal`, `arm64`, `x64`, or `x86` as appropriate. Source archives use
-`App-1.0.0-source.zip`. SHA256SUMS.txt covers every attached asset.
+Downloads are named `JustRecorder-1.0.0-macOS-universal.zip`,
+`JustRecorder-1.0.0-Windows-{arm64,x64,x86}.zip` and
+`JustRecorder-1.0.0-source.zip`. SHA256SUMS.txt covers every attached asset.
 
 The publisher checks the build commit against current `main`, uploads into a
 draft, downloads and verifies every asset, then moves `v1.0.0` to the built

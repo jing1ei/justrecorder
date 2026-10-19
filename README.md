@@ -144,20 +144,16 @@ The Windows ZIP includes the runtime. The Mac app is ad-hoc signed, not notarize
 
 Original project code: all rights reserved. Third-party notices are retained in the source and packages.
 
-## Automatic builds
+## Continuous integration
 
-GitHub Actions runs on every push, pull request, or manual dispatch. Successful runs
-provide the universal Mac app and source ZIP, plus Windows x64, x86, and ARM64 ZIPs
-under **Actions → workflow run → Artifacts**. Missing outputs or failing tests fail
-the run. Windows x64/x86 builds test native codecs; ARM64 is cross-built.
-These workflows build downloads; they do not create a GitHub Release or sign a
-public distribution. The workflows have been checked locally but not run in a
-hosted repository yet.
+GitHub Actions builds and tests every push, pull request, and manual dispatch.
+Required outputs are the universal Mac app plus a source ZIP, and Windows x64, x86,
+and ARM64 ZIPs; any missing output or failing test fails the run. Windows x64/x86
+builds also exercise the native codecs; ARM64 is cross-built. Build artifacts are
+available under **Actions → workflow run → Artifacts**.
 
-## Automatic downloads
-
-Every successful build from a push to `main` refreshes the public **1.0.0** release.
-All required platform builds and checks must pass first. Downloads use
-`App-1.0.0-OS-architecture.ext`, such as `App-1.0.0-macOS-universal.zip`
-or `App-1.0.0-Windows-x64.exe`. See [release automation](.github/RELEASES.md)
-for the exact packages, checksums, and retry behavior.
+After every successful build of `main`, the same artifacts refresh the public
+**1.0.0** release; all platform builds must pass first. Downloads are named
+`JustRecorder-1.0.0-macOS-universal.zip`, `JustRecorder-1.0.0-Windows-x64.zip`, and
+so on. See the [release automation](.github/RELEASES.md) for the exact packages,
+checksums, and retry behavior.
