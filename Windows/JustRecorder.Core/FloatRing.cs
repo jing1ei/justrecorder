@@ -6,7 +6,18 @@ public sealed class FloatRing(int capacity)
     public void Append(ReadOnlySpan<float> samples)
     {
         if (samples.Length % 2 != 0) throw new ArgumentException("Stereo samples must be frame aligned.");
-        foreach (var value in samples) { data[next] = value; next = (next + 1) % data.Length; count = Math.Min(count + 1, data.Length); }
+        if (samples.Length >= data.Length)
+        {
+            samples[^data.Length..].CopyTo(data);
+            next = 0;
+            count = data.Length;
+            return;
+        }
+        var head = Math.Min(samples.Length, data.Length - next);
+        samples[..head].CopyTo(data.AsSpan(next));
+        samples[head..].CopyTo(data);
+        next = (next + samples.Length) % data.Length;
+        count = Math.Min(count + samples.Length, data.Length);
     }
     public float[] Drain()
     {

@@ -113,18 +113,16 @@ final class RecordingController {
         )
 
         Task { @MainActor in
-            if settings.preRollEnabled, !captureNeedsRestart {
+            guard !isRecording, !isStarting, !isTerminating, !captureNeedsRestart else { return }
+            if settings.preRollEnabled {
                 do {
                     try await recorder.prepareStream(sampleRate: settings.sampleRate, userInitiated: false)
                 } catch {
+                    guard !isRecording, !isStarting, settings.preRollEnabled else { return }
                     updateStatus("Pre-roll is paused. Start a recording to check capture access.", needsAttention: true)
                     Log.warn("Pre-roll could not start: \(error.localizedDescription)")
                 }
-            } else if !isRecording, !isStarting {
-                // `isStarting` matters: a settings change (or the pre-roll menu toggle)
-                // landing while `start()` is still arming would otherwise tear the stream
-                // down under the recording that is about to begin — no buffers would ever
-                // arrive, so it could neither auto-stop nor save anything.
+            } else {
                 await recorder.stopStream()
             }
             onStateChange?()
@@ -187,7 +185,7 @@ final class RecordingController {
         }
         sourceTask = detection
 
-        Task { @MainActor in
+        Task { @MainActor [self] in
             do {
                 try await recorder.prepareStream(sampleRate: settings.sampleRate)
             } catch {
@@ -206,7 +204,7 @@ final class RecordingController {
             guard concludeArming(generation) else {
                 detection.cancel()
                 Log.warn("Capture stream armed after the timeout; releasing it again.")
-                if !settings.preRollEnabled { await recorder.stopStream() }
+                await recorder.stopStream()
                 return
             }
 
@@ -218,7 +216,7 @@ final class RecordingController {
                 detection.cancel()
                 sourceTask = nil
                 startCancelled = false
-                if !settings.preRollEnabled { await recorder.stopStream() }
+                applyPreRollSetting()
                 onStateChange?()
                 return
             }
@@ -279,14 +277,6 @@ final class RecordingController {
             self.sourceTask?.cancel()
             self.sourceTask = nil
 
-            // Tear down whatever half-built stream the wedged attempt may still produce.
-            // The recorder serialises arm/disarm, so this teardown lands as soon as the
-            // stuck call finally returns; the late-success path above covers the case
-            // where it beats us to it.
-            if !self.settings.preRollEnabled {
-                Task { @MainActor in await self.recorder.stopStream() }
-            }
-
             if wasCancelled {
                 self.updateStatus("Cancelled.")
                 self.onStateChange?()
@@ -324,9 +314,7 @@ final class RecordingController {
             isStopping = false
             finishStoppedRecording(result, detection: detection, format: format)
         }
-        if !settings.preRollEnabled {
-            Task { @MainActor in await recorder.stopStream() }
-        }
+        applyPreRollSetting()
     }
 
     private func finishStoppedRecording(
@@ -611,23 +599,28 @@ final class RecordingController {
     private func sweepOrphanedRecordings(in folder: URL) {
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: folder,
-            includingPropertiesForKeys: nil
+            includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey]
         ) else { return }
 
-        for url in entries where Self.isTempRecording(url) {
-            if isBeingWrittenByAnotherInstance(url) {
+        let audioExtensions = Set(AudioFormatKind.allCases.map(\.fileExtension))
+        for url in entries where audioExtensions.contains(url.pathExtension.lowercased()) {
+            guard let prefix = Self.tempPrefix(for: url.lastPathComponent),
+                  let properties = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
+                  properties.isRegularFile == true, properties.isSymbolicLink != true else { continue }
+            if isBeingWrittenByLiveInstance(url, prefix: prefix) {
                 Log.info("Leaving \(url.lastPathComponent) alone: another JustRecorder instance is writing it.")
                 continue
             }
-            var durationText = "unknown"
-            if let file = try? AVAudioFile(forReading: url), file.fileFormat.sampleRate > 0 {
-                let seconds = Double(file.length) / file.fileFormat.sampleRate
-                if seconds < 0.3 {
-                    try? FileManager.default.removeItem(at: url)
-                    continue
-                }
-                durationText = DurationFormatter.compact(seconds)
+            guard let file = try? AVAudioFile(forReading: url), file.fileFormat.sampleRate > 0 else {
+                Log.warn("Could not read \(url.lastPathComponent); leaving it in place.")
+                continue
             }
+            let seconds = Double(file.length) / file.fileFormat.sampleRate
+            if seconds < 0.3 {
+                try? FileManager.default.removeItem(at: url)
+                continue
+            }
+            let durationText = DurationFormatter.compact(seconds)
             let destination = claimTarget(
                 in: folder,
                 baseName: "Recovered Snippet \(durationText)",
@@ -642,11 +635,6 @@ final class RecordingController {
         }
     }
 
-    private static func isTempRecording(_ url: URL) -> Bool {
-        let name = url.lastPathComponent
-        return name.hasPrefix(tempFilePrefix) || name.hasPrefix(legacyTempFilePrefix)
-    }
-
     private static func tempPrefix(for name: String) -> String? {
         for prefix in [tempFilePrefix, legacyTempFilePrefix] where name.hasPrefix(prefix) {
             return prefix
@@ -657,10 +645,8 @@ final class RecordingController {
     /// Temp names look like `.<app>-<pid>-<random>.<ext>`; a file whose PID still belongs
     /// to a live JustRecorder process is in use. Names without a PID (written by an older build)
     /// are treated as orphans, as before.
-    private func isBeingWrittenByAnotherInstance(_ url: URL) -> Bool {
-        let name = url.lastPathComponent
-        guard let prefix = Self.tempPrefix(for: name) else { return false }
-        let stem = name.dropFirst(prefix.count)
+    private func isBeingWrittenByLiveInstance(_ url: URL, prefix: String) -> Bool {
+        let stem = url.lastPathComponent.dropFirst(prefix.count)
         guard let separator = stem.firstIndex(of: "-"),
               let pid = pid_t(stem[stem.startIndex..<separator]),
               pid > 0
@@ -672,7 +658,7 @@ final class RecordingController {
         else { return false }
 
         if let ours = Bundle.main.bundleIdentifier, let theirs = other.bundleIdentifier {
-            return ours == theirs
+            return ours == theirs || theirs == "com.riffapp.Riff"
         }
         // Running the executable directly (no bundle identifier): compare binaries.
         return other.executableURL == Bundle.main.executableURL

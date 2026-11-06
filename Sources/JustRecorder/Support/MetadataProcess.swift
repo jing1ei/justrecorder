@@ -8,21 +8,7 @@ enum MetadataProcess {
         defer { try? FileManager.default.removeItem(at: output) }
         guard let handle = try? FileHandle(forWritingTo: output) else { return nil }
         defer { try? handle.close() }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = handle
-        process.standardError = FileHandle.nullDevice
-        let done = DispatchSemaphore(value: 0)
-        process.terminationHandler = { _ in done.signal() }
-        do { try process.run() } catch { return nil }
-        if done.wait(timeout: .now() + max(0.1, timeout)) == .timedOut {
-            process.terminate()
-            if done.wait(timeout: .now() + 0.2) == .timedOut { kill(process.processIdentifier, SIGKILL) }
-            return nil
-        }
-        guard process.terminationStatus == 0,
+        guard ProcessRunner.run(executable: executable, arguments: arguments, timeout: timeout, output: handle) == 0,
               let reader = try? FileHandle(forReadingFrom: output) else { return nil }
         defer { try? reader.close() }
         guard let data = try? reader.read(upToCount: 16_385), data.count <= 16_384 else { return nil }

@@ -1,81 +1,47 @@
 # JustRecorder reference
 
-[Quick start](../README.md)
-
 ## Naming
 
-Default: `[{artist} - ]{title} {duration}`
+Default template `[{artist} - ]{title} {duration}`
 
 | Token | Value |
 |---|---|
-| `{title}` | Cleaned title; optionally polished by AI |
-| `{raw_title}` | Original window or track title, sanitized for filenames |
+| `{title}` | Cleaned title, optionally polished by AI |
+| `{raw_title}` | Original window or track title, sanitized |
 | `{artist}` / `{track}` | Player metadata, when available |
 | `{app}` | Source application |
 | `{duration}` / `{seconds}` | `1m3s` / `63` |
-| `{format}` | Format actually saved |
+| `{format}` | Saved audio format |
 | `{date}` / `{time}` / `{datetime}` | Local date and time |
 
-An optional `[group]` disappears if a known token inside it is empty. Existing files
-are never overwritten. A number is added when a name is already taken.
+Optional `[groups]` disappear when a known token inside is empty. Repeated filenames get a numeric suffix. AI errors fall back to the local title.
 
-## Formats
+macOS settings screenshots for [Capture](screenshots/macos-capture.jpg), [Naming](screenshots/macos-naming.jpg), [AI naming](screenshots/macos-ai-naming.jpg) and [General](screenshots/macos-general.jpg).
 
-AAC is the default. Mac MP3 output requires `lame` or `ffmpeg`; without an encoder,
-JustRecorder captures AAC. Windows Apple Lossless requires `ffmpeg.exe` beside JustRecorder or
-on PATH. Failed conversions retain the original WAV. Windows N editions may need
-the Media Feature Pack for AAC and MP3.
+## Formats and recovery
+
+On Mac, MP3 uses `lame` or `ffmpeg` from a standard Homebrew, MacPorts or system binary directory. If no encoder is found, capture uses AAC. If conversion fails, the WAV is kept. See the [Windows guide](../Windows/README.md#encoders-and-recovery) for Windows encoders.
+
+At startup, JustRecorder looks for interrupted recordings in the current save folder. Readable clips are recovered as `Recovered Snippet …`. Keep that folder available until saving completes.
 
 ## macOS build
 
-```sh
-./build.sh --universal   # Intel and Apple silicon
-./build.sh --dmg         # Universal app in a disk image
-./build.sh --install     # Build for this Mac, install, launch
-./test.sh
-./test.sh x86_64         # Requires Rosetta on Apple silicon
-```
-
-Requires Xcode Command Line Tools with Swift 5.9+. macOS 13 is the minimum runtime.
-The default bundle is ad-hoc signed, not notarized. Rebuilding changes its identity
-as seen by macOS privacy checks and may require renewed authorization. For stable
-release signing, set `JUSTRECORDER_SIGN_IDENTITY` to your installed Developer ID
-Application identity before building. Signing and notarization for public
-release require the distributor's Apple Developer credentials.
-
-## macOS advanced preferences
-
-Quit JustRecorder before changing these values. Settings and credentials from an
-older build are migrated automatically on first launch.
+With Xcode Command Line Tools and Swift 5.9+, run from the repository root.
 
 ```sh
-defaults write com.jing1ei.JustRecorder sampleRate -int 44100
-defaults write com.jing1ei.JustRecorder mp3BitrateKbps -int 192
-defaults write com.jing1ei.JustRecorder maxTitleLength -int 50
-defaults write com.jing1ei.JustRecorder revealAfterSave -bool YES
-defaults write com.jing1ei.JustRecorder showTimerInMenuBar -bool NO
-defaults write com.jing1ei.JustRecorder aiTimeoutSeconds -float 15
+./build.sh --universal   # build/JustRecorder.app for Apple silicon and Intel
+./build.sh --dmg         # universal app in a disk image
+./build.sh --install     # native build, install and launch
+./test.sh                # native regression checks
+python3 source-release.py
 ```
 
-Defaults: 48000 Hz, MP3 320 kbps, title limit 70, reveal off, menu timer on,
-AI timeout 8 seconds.
+Set `JUSTRECORDER_SIGN_IDENTITY` to use an installed signing identity. A rebuilt ad-hoc app may need capture permission again.
 
-## Recovery and diagnostics
+## macOS diagnostics
 
-Quit waits briefly for pending saves. On the next launch, readable interrupted
-recordings are renamed `Recovered Snippet …`. Unreadable files are retained.
-Keep the save folder available until a clip finishes saving.
-
-Mac logs:
+If permission prompts repeat, quit all copies, remove the old entry under **Privacy & Security → Screen & System Audio Recording**, add the installed copy and reopen it. If capture times out, quit and reopen the app. Player Automation consent is separate from capture permission.
 
 ```sh
 log stream --predicate 'subsystem == "com.jing1ei.JustRecorder"' --level info
 ```
-
-Windows settings and logs: `%LOCALAPPDATA%\JustRecorder` (older builds used
-`%LOCALAPPDATA%\Riff`; settings are moved over on first launch).
-See the [Windows guide](../Windows/README.md) for build and runtime checks.
-
-Metadata queries run in a bounded `osascript` process. Player Automation consent
-and metadata availability are separate from system-audio capture permission. If a
-player does not answer, naming falls back to the window title.

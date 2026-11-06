@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: windows-${{ github.event.pull_request.number || github.ref }}
+  group: windows-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -28,6 +28,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Verify packaging failure paths
+        if: matrix.runtime == 'win-x64'
         shell: pwsh
         run: ./Tests/test_windows_package.ps1
       - name: Ensure Windows media codecs are available

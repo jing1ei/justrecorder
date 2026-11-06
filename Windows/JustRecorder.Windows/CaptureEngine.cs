@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using JustRecorder.Core;
@@ -8,12 +9,11 @@ internal sealed record CaptureResult(string Path, double Seconds, bool Silent);
 internal sealed class CaptureEngine : IDisposable
 {
     readonly object gate = new(); MMDevice? device; WasapiLoopbackCapture? capture; WasapiOut? keepAlive;
-    FloatRing? ring; WriteSession? session; int rate = 48000; bool disposing; bool configuredPreRoll; int configuredSeconds;
+    FloatRing? ring; WriteSession? session; int rate = 48000; bool configuredPreRoll; int configuredSeconds;
     private Guid generation = Guid.NewGuid();
-    public Guid Generation { get { lock (gate) return generation; } private set { lock (gate) generation = value; } }
+    public Guid Generation { get { lock (gate) return generation; } }
     public event Action<string, Guid>? Failed;
     public bool Armed => capture != null;
-    public string DeviceName => device?.FriendlyName ?? "Default Windows output";
     public double Seconds { get { lock (gate) return session?.Seconds ?? 0; } }
     public bool DeviceChanged
     {
@@ -34,7 +34,14 @@ internal sealed class CaptureEngine : IDisposable
             capture = new WasapiLoopbackCapture(device) { WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(rate, 2) };
             capture.DataAvailable += Data;
             var owned = capture;
-            capture.RecordingStopped += (_, e) => { if (!disposing && ReferenceEquals(capture, owned)) Failed?.Invoke(e.Exception?.Message ?? "The audio capture stream stopped. Try again.", Generation); };
+            capture.RecordingStopped += (_, e) =>
+            {
+                lock (gate)
+                {
+                    if (ReferenceEquals(capture, owned))
+                        Failed?.Invoke(e.Exception?.Message ?? "The audio capture stream stopped. Try again.", generation);
+                }
+            };
             ring = settings.PreRoll ? new FloatRing(rate * 2 * settings.PreRollSeconds) : null;
             // Keep the Windows audio engine delivering silent packets when playback stops.
             keepAlive = new WasapiOut(device, AudioClientShareMode.Shared, false, 100);
@@ -48,9 +55,8 @@ internal sealed class CaptureEngine : IDisposable
         Arm(settings);
         lock (gate) {
             if (session != null) throw new InvalidOperationException("A recording is already active.");
-            Generation = Guid.NewGuid();
-            var generation = Generation;
-            session = new WriteSession(path, rate, ex => Failed?.Invoke(ex.Message, generation));
+            var sessionID = generation = Guid.NewGuid();
+            session = new WriteSession(path, rate, ex => Failed?.Invoke(ex.Message, sessionID));
             var previous = ring?.Drain();
             if (previous?.Length > 0) session.Push(previous);
         }
@@ -61,16 +67,36 @@ internal sealed class CaptureEngine : IDisposable
     }
     void Data(object? sender, WaveInEventArgs e)
     {
-        if (e.BytesRecorded % 8 != 0) return;
-        var floats = new float[e.BytesRecorded / 4]; Buffer.BlockCopy(e.Buffer, 0, floats, 0, e.BytesRecorded);
-        lock (gate) { if (session != null) session.Push(floats); else ring?.Append(floats); }
+        if (e.BytesRecorded == 0 || e.BytesRecorded % 8 != 0) return;
+        var samples = MemoryMarshal.Cast<byte, float>(e.Buffer.AsSpan(0, e.BytesRecorded));
+        lock (gate)
+        {
+            if (!ReferenceEquals(capture, sender)) return;
+            if (session != null) session.Push(samples.ToArray());
+            else ring?.Append(samples);
+        }
     }
     public void Disarm()
     {
-        disposing = true;
-        Generation = Guid.NewGuid();
-        try { capture?.StopRecording(); capture?.Dispose(); keepAlive?.Stop(); keepAlive?.Dispose(); device?.Dispose(); }
-        finally { capture = null; keepAlive = null; device = null; lock (gate) ring = null; disposing = false; }
+        WasapiLoopbackCapture? stopped;
+        lock (gate)
+        {
+            generation = Guid.NewGuid();
+            stopped = capture;
+            capture = null;
+            ring = null;
+        }
+        // Dispose joins the capture thread, so release the callback lock first.
+        DisposeAudio(stopped);
+        DisposeAudio(keepAlive);
+        DisposeAudio(device);
+        keepAlive = null;
+        device = null;
+    }
+    static void DisposeAudio(IDisposable? audio)
+    {
+        try { audio?.Dispose(); }
+        catch (Exception ex) { Platform.Log(ex); }
     }
     public void Dispose() => Disarm();
     internal sealed class WriteSession

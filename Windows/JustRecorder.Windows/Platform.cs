@@ -55,8 +55,8 @@ internal static class Platform
             using var run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
             if (run != null)
             {
-                if (run.GetValue(LegacyAppName) is string command && run.GetValue(AppName) is null)
-                    run.SetValue(AppName, command);
+                if (run.GetValue(LegacyAppName) is string && run.GetValue(AppName) is null)
+                    run.SetValue(AppName, LoginCommand);
                 run.DeleteValue(LegacyAppName, false);
             }
         }
@@ -73,11 +73,16 @@ internal static class Platform
 
     public static void Reveal(string path) { var p = new ProcessStartInfo("explorer.exe") { UseShellExecute = true }; p.ArgumentList.Add("/select," + path); Process.Start(p); }
     public static void OpenFolder(string path) { Directory.CreateDirectory(path); Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
-    public static void Log(Exception ex) { try { Directory.CreateDirectory(DataFolder); File.AppendAllText(LogPath, $"{DateTime.Now:u} {ex.GetType().Name}: {ex.Message}\n"); } catch (IOException) { } }
+    public static void Log(Exception ex)
+    {
+        try { Directory.CreateDirectory(DataFolder); File.AppendAllText(LogPath, $"{DateTime.UtcNow:u} {ex.GetType().Name}: {ex.Message}\n"); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+    }
+    static string LoginCommand => $"\"{Environment.ProcessPath}\"";
     public static bool LaunchAtLogin
     {
         get { using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); return key?.GetValue(AppName) is string; }
-        set { using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); if (value) key.SetValue(AppName, $"\"{Environment.ProcessPath}\""); else key.DeleteValue(AppName, false); }
+        set { using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); if (value) key.SetValue(AppName, LoginCommand); else key.DeleteValue(AppName, false); }
     }
     const string CredentialTarget = "JustRecorder.AI";
     const string LegacyCredentialTarget = "Riff.AI";

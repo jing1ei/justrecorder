@@ -40,21 +40,9 @@ def prepare(source, output, config):
         if len(matches) != 1 or matches[0].is_symlink() or matches[0].stat().st_size == 0:
             raise ValueError(f'Expected one nonempty package for {name}; found {matches}')
         selected[name] = matches[0]
-    for pattern in config.get('extras', []):
-        for path in candidates:
-            if fnmatch.fnmatchcase(path.name, pattern):
-                if path.name in selected and digest(selected[path.name]) != digest(path):
-                    raise ValueError(f'Conflicting additional asset: {path.name}')
-                if path.is_symlink() or not path.stat().st_size:
-                    raise ValueError(f'Invalid additional asset: {path.name}')
-                selected[path.name] = path
     output.mkdir(parents=True, exist_ok=False)
     for name, path in selected.items():
         shutil.copyfile(path, output / name)
-    source_name = f"{config['project']}-{VERSION}-source.zip"
-    if source_name not in selected:
-        subprocess.run(['git', 'archive', '--format=zip', f"--prefix={config['project']}/",
-                        '-o', str((output / source_name).resolve()), 'HEAD'], cwd=ROOT, check=True)
     files = sorted(output.iterdir())
     (output / 'SHA256SUMS.txt').write_text(''.join(f'{digest(p)}  {p.name}\n' for p in files))
     return output
@@ -62,7 +50,7 @@ def prepare(source, output, config):
 
 def gh(*args, payload=None):
     result = subprocess.run(['gh', *args], input=json.dumps(payload) if payload is not None else None,
-                            text=True, capture_output=True, check=True)
+                            text=True, stdout=subprocess.PIPE, check=True)
     return result.stdout
 
 

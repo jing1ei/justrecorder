@@ -8,7 +8,7 @@ internal sealed class Recorder : IDisposable
     readonly CaptureEngine engine = new(); readonly SynchronizationContext ui; readonly System.Windows.Forms.Timer timer = new() { Interval = 250 };
     Settings settings; Settings? active; Task<Source>? source; CancellationTokenSource? detection;
     readonly CancellationTokenSource shutdown = new(); readonly HashSet<Task> finalizing = [];
-    Stopwatch? clock; Task? stopping; bool closing; string? activePath; DateTime started; DateTime nextDeviceCheck;
+    Stopwatch? clock; Task? stopping; bool closing; DateTime started; long lastDeviceCheck;
     public string Status { get; private set; } = "Ready to record system audio.";
     public string? LastSaved { get; private set; }
     public bool Recording { get; private set; }
@@ -20,22 +20,51 @@ internal sealed class Recorder : IDisposable
     public Recorder(Settings settings)
     {
         this.settings = settings; ui = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
-        engine.Failed += (text, generation) => ui.Post(async _ => { if (closing || generation != engine.Generation) return; if (Recording) await Stop(); engine.Disarm(); Set(text, true); Notice?.Invoke(text); }, null);
+        engine.Failed += (text, generation) => ui.Post(state =>
+        {
+            if (closing || generation != engine.Generation) return;
+            if (Recording) _ = Stop(resetCapture: true);
+            else engine.Disarm();
+            Set(text, true);
+            Notice?.Invoke(text);
+        }, null);
         timer.Tick += async (_, _) =>
         {
             if (Recording)
             {
                 Changed?.Invoke(); if (active!.AutoStopMinutes > 0 && (clock!.Elapsed.TotalMinutes >= active.AutoStopMinutes || Seconds >= active.AutoStopMinutes * 60)) await Stop();
             }
-            if (!Busy && engine.Armed && DateTime.UtcNow >= nextDeviceCheck) try { nextDeviceCheck = DateTime.UtcNow.AddSeconds(2); if (engine.DeviceChanged) { if (Recording) await Stop(); engine.Disarm(); Set("Audio output changed. The next capture uses the new Windows output."); if (settings.PreRoll) engine.Arm(settings); } } catch (Exception ex) { Set(ex.Message, true); }
+            if (closing || Busy || !engine.Armed || Stopwatch.GetElapsedTime(lastDeviceCheck) < TimeSpan.FromSeconds(2)) return;
+            lastDeviceCheck = Stopwatch.GetTimestamp();
+            try
+            {
+                if (!engine.DeviceChanged) return;
+                if (Recording) await Stop(resetCapture: true);
+                else { engine.Disarm(); ApplyCaptureSettings(); }
+            }
+            catch (Exception ex)
+            {
+                if (Recording) await Stop(resetCapture: true);
+                else engine.Disarm();
+                if (!closing) Set("Could not access the default Windows output: " + ex.Message, true);
+            }
         };
         timer.Start();
     }
     public void Configure(Settings next)
     {
-        var rearm = settings.PreRoll != next.PreRoll || settings.PreRollSeconds != next.PreRollSeconds || settings.SampleRate != next.SampleRate;
         settings = next;
-        if (!Recording && !Busy && (rearm || !engine.Armed)) { engine.Disarm(); if (settings.PreRoll) try { engine.Arm(settings); } catch (Exception ex) { Set(ex.Message, true); } }
+        if (!Recording && !Busy) ApplyCaptureSettings();
+    }
+    void ApplyCaptureSettings()
+    {
+        if (closing || !settings.PreRoll)
+        {
+            if (engine.Armed) engine.Disarm();
+            return;
+        }
+        try { engine.Arm(settings); }
+        catch (Exception ex) { Set(ex.Message, true); }
     }
     public void Initialize() { Configure(settings); _ = Recover(settings.SaveFolder); }
     void Set(string text, bool warning = false) { Status = text; Attention = warning; Changed?.Invoke(); }
@@ -45,7 +74,7 @@ internal sealed class Recorder : IDisposable
         try
         {
             Directory.CreateDirectory(settings.SaveFolder); active = settings with { }; started = DateTime.Now;
-            activePath = Path.Combine(settings.SaveFolder, $".justrecorder-{Environment.ProcessId}-{Guid.NewGuid():N}.wav");
+            var activePath = Path.Combine(settings.SaveFolder, $".justrecorder-{Environment.ProcessId}-{Guid.NewGuid():N}.wav");
             detection?.Dispose(); detection = new CancellationTokenSource(TimeSpan.FromSeconds(2)); source = Detect(detection.Token, settings.PlayerMetadata);
             // Endpoint loopback includes JustRecorder: start cues are omitted to keep clips clean.
             engine.Start(active, activePath); Recording = true; clock = Stopwatch.StartNew(); Set("Recording…");
@@ -53,13 +82,13 @@ internal sealed class Recorder : IDisposable
         catch (Exception ex) { detection?.Cancel(); engine.Disarm(); Set("Could not start: " + ex.Message, true); Notice?.Invoke(Status); }
     }
     static async Task<Source> Detect(CancellationToken ct, bool metadata) { try { return await SourceDetector.Detect(metadata, ct); } catch { return new Source(); } }
-    public Task Stop()
+    Task Stop(bool resetCapture = false)
     {
         if (stopping is not null) return stopping;
         if (!Recording) return Task.CompletedTask;
         Recording = false; Busy = true; clock?.Stop(); Set("Saving…");
         var captured = engine.Stop(); var config = active!; var title = source; var at = started;
-        if (!settings.PreRoll) engine.Disarm();
+        if (resetCapture || closing || !settings.PreRoll) engine.Disarm();
         var operation = FinishStop(captured, config, title, at);
         stopping = operation.IsCompleted ? null : operation; return operation;
     }
@@ -76,8 +105,10 @@ internal sealed class Recorder : IDisposable
         catch (Exception ex) { Set("Could not finish saving. The temporary WAV will be recovered on next launch. " + ex.Message, true); Platform.Log(ex); }
         finally
         {
-            Busy = false; stopping = null; if (settings.Sounds && !settings.PreRoll) System.Media.SystemSounds.Asterisk.Play();
-            if (!closing && settings.PreRoll) try { engine.Arm(settings); } catch (Exception ex) { Set(ex.Message, true); }
+            Busy = false;
+            stopping = null;
+            ApplyCaptureSettings();
+            if (!closing && settings.Sounds && !settings.PreRoll) System.Media.SystemSounds.Asterisk.Play();
             Changed?.Invoke();
         }
     }
@@ -96,7 +127,13 @@ internal sealed class Recorder : IDisposable
             Changed?.Invoke();
             if (!closing) { if (config.Reveal) Platform.Reveal(final); if (produced.warning != null) Notice?.Invoke(produced.warning); else if (result.Silent) Notice?.Invoke("This recording was saved, but no sound was detected. Check the selected Windows output device."); else if (namingWarning != null) Notice?.Invoke(namingWarning); }
         }
-        catch (Exception ex) { Set("Captured audio remains in the save folder for recovery. " + ex.Message, true); Platform.Log(ex); if (!closing) Notice?.Invoke(Status); }
+        catch (Exception ex)
+        {
+            var message = "Captured audio remains in the save folder for recovery. " + ex.Message;
+            if (!Recording && !Busy) Set(message, true);
+            Platform.Log(ex);
+            if (!closing) Notice?.Invoke(message);
+        }
     }
     async Task Recover(string folder)
     {

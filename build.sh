@@ -96,7 +96,8 @@ if [[ ! -f "${EXECUTABLE}" ]]; then
 fi
 
 if [[ "${UNIVERSAL}" -eq 1 ]]; then
-  lipo "${EXECUTABLE}" -verify_arch arm64 x86_64
+  lipo "${EXECUTABLE}" -verify_arch arm64
+  lipo "${EXECUTABLE}" -verify_arch x86_64
 fi
 
 echo "==> Assembling ${APP_BUNDLE}…"
@@ -192,7 +193,7 @@ if [[ "${MAKE_DMG}" -eq 1 ]]; then
   fi
 
   APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
-    "${APP_BUNDLE}/Contents/Info.plist" 2>/dev/null || echo "1.0.0")"
+    "${APP_BUNDLE}/Contents/Info.plist")"
   DMG_PATH="${BUILD_DIR}/${APP_NAME}-${APP_VERSION}.dmg"
   VOLUME_NAME="${APP_NAME} ${APP_VERSION}"
   STAGE_DIR="${BUILD_DIR}/dmg-staging"
@@ -237,5 +238,5 @@ if [[ "${MAKE_DMG}" -eq 1 ]]; then
   fi
 
   echo "==> Done: ${DMG_PATH} ($(du -h "${DMG_PATH}" | cut -f1))"
-  echo "    Not notarised: on another Mac, right-click JustRecorder.app → Open the first time."
+  echo "    This disk image contains an app that has not been notarized."
 fi
