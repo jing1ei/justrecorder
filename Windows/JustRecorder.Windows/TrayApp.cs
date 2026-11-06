@@ -48,10 +48,30 @@ internal sealed class TrayApp : ApplicationContext
     void ShowSettings() { if (window is { IsDisposed: false }) { window.Activate(); return; } window = new SettingsForm(settings, Save, hotkey); window.Show(); }
     void Save(Settings next, bool login, string key, bool keyChanged)
     {
+        var previousLogin = Platform.LaunchAtLogin;
+        var previousKey = keyChanged ? Platform.KeyRead() : null;
         // Fail before replacing working preferences if Windows refuses the shortcut.
         if (!hotkey.Register(next.HotKey, next.Modifiers)) { hotkey.Register(settings.HotKey, settings.Modifiers); throw new InvalidOperationException("Windows refused this shortcut. Choose a different combination."); }
-        try { if (keyChanged) Platform.KeyWrite(key); Platform.LaunchAtLogin = login; next.Save(Platform.SettingsPath); settings = next; recorder.Configure(next); Refresh(); }
-        catch { hotkey.Register(settings.HotKey, settings.Modifiers); throw; }
+        var keyWritten = false;
+        var loginWritten = false;
+        try
+        {
+            if (keyChanged) { Platform.KeyWrite(key); keyWritten = true; }
+            if (login || previousLogin) { Platform.LaunchAtLogin = login; loginWritten = true; }
+            next.Save(Platform.SettingsPath);
+        }
+        catch
+        {
+            hotkey.Register(settings.HotKey, settings.Modifiers);
+            try { if (loginWritten) Platform.LaunchAtLogin = previousLogin; }
+            catch (Exception ex) { Platform.Log(ex); }
+            try { if (keyWritten) Platform.KeyWrite(previousKey!); }
+            catch (Exception ex) { Platform.Log(ex); }
+            throw;
+        }
+        settings = next;
+        recorder.Configure(next);
+        Refresh();
     }
     async Task Quit() { if (quitting) return; if (window is { IsDisposed: false } && !window.TrySave()) return; quitting = true; hotkey.Enabled = false; await recorder.Close(); window?.CloseAfterSave(); tray.Visible = false; ExitThread(); }
     protected override void Dispose(bool disposing) { if (disposing) { disposed = true; SystemEvents.UserPreferenceChanged -= SystemAppearanceChanged; clock.Dispose(); tray.Dispose(); normalIcon.Dispose(); menu.Dispose(); hotkey.Dispose(); recorder.Dispose(); } base.Dispose(disposing); }

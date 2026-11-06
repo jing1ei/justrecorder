@@ -171,8 +171,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Recordings go to:
         \(settings.saveFolder)
 
-        macOS may request “Screen & System Audio Recording” when you first record — that is the permission \
-        that lets JustRecorder hear system audio. Nothing is ever uploaded, and what you hear is unchanged.
+        macOS may request “Screen & System Audio Recording” when you first record. \
+        Recordings stay on your Mac. Optional AI naming sends text metadata to your configured endpoint.
         """
         alert.addButton(withTitle: "Open Capture Permissions")
         alert.addButton(withTitle: "Open Settings…")

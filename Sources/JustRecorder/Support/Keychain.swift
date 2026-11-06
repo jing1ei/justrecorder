@@ -9,6 +9,7 @@ enum Keychain {
     private static let legacyService = "com.riffapp.Riff.aiAPIKey"
     private static let account = "default"
     private static let fallbackKey = "aiAPIKeyFallback"
+    private static let didClearLegacyKey = "didClearLegacyAIKey"
 
     private static func baseQuery(for serviceName: String = service) -> [String: Any] {
         [
@@ -19,10 +20,6 @@ enum Keychain {
     }
 
     private static var baseQuery: [String: Any] { baseQuery() }
-
-    static func read() -> String? {
-        read(service: service)
-    }
 
     private static func read(service serviceName: String) -> String? {
         var query = baseQuery(for: serviceName)
@@ -73,6 +70,8 @@ enum Keychain {
         let status = SecItemDelete(baseQuery as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { return false }
         UserDefaults.standard.removeObject(forKey: fallbackKey)
+        // An older Keychain item may still exist if migration could not delete it.
+        UserDefaults.standard.set(true, forKey: didClearLegacyKey)
         return true
     }
 
@@ -80,11 +79,12 @@ enum Keychain {
     /// Keychain service, then the even older plain-text preference) before using them.
     /// A failed migration leaves the original value intact for a later retry.
     static func readWithFallback() -> String? {
-        if let value = read() {
+        if let value = read(service: service) {
             UserDefaults.standard.removeObject(forKey: fallbackKey)
             return value
         }
-        if let migrated = read(service: legacyService) {
+        if !UserDefaults.standard.bool(forKey: didClearLegacyKey),
+           let migrated = read(service: legacyService) {
             if write(migrated) { SecItemDelete(baseQuery(for: legacyService) as CFDictionary) }
             return migrated
         }

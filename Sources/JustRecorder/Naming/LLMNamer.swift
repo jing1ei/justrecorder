@@ -14,12 +14,7 @@ enum LLMNamer {
             let settings = Settings.shared
             return Config(
                 baseURL: settings.aiBaseURL,
-                // Trimmed here as well as on the way into the Keychain: a key stored by an
-                // older build (or by the UserDefaults fallback) can still carry the newline
-                // that came with the paste, and `URLRequest.setValue` silently drops a
-                // header value containing one — every request would then be unauthorised.
-                apiKey: (Keychain.readWithFallback() ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                apiKey: settings.aiAPIKey,
                 model: settings.aiModel,
                 systemPrompt: settings.aiSystemPrompt,
                 timeout: settings.aiTimeout
@@ -151,6 +146,15 @@ enum LLMNamer {
 
     // MARK: - HTTP
 
+    private final class BlockRedirects: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask,
+                        willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest,
+                        completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
+    }
+
     private static func complete(
         url: URL,
         config: Config,
@@ -175,7 +179,7 @@ enum LLMNamer {
         sessionConfiguration.waitsForConnectivity = false
         sessionConfiguration.timeoutIntervalForRequest = max(2, config.timeout)
         sessionConfiguration.timeoutIntervalForResource = max(3, config.timeout + 2)
-        let session = URLSession(configuration: sessionConfiguration)
+        let session = URLSession(configuration: sessionConfiguration, delegate: BlockRedirects(), delegateQueue: nil)
         // A session keeps itself alive until it is invalidated.
         defer { session.finishTasksAndInvalidate() }
 
@@ -189,7 +193,6 @@ enum LLMNamer {
                     ["role": "system", "content": systemPrompt],
                     ["role": "user", "content": userMessage]
                 ],
-                "temperature": 0.2,
                 "stream": false
             ]
             body[tokenKey] = 96

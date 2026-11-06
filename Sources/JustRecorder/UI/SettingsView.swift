@@ -505,10 +505,7 @@ private extension SettingsPanelController {
             action: #selector(bitrateChanged(_:))
         )
         bitrateRow = appendRow("Bitrate", value: bitratePopUp)
-        bitrateCaption = appendCaption("""
-        256 kbps is the default: macOS encodes AAC natively, and it matches 320 kbps MP3 \
-        in about 20 % less space.
-        """)
+        bitrateCaption = appendCaption("macOS encodes AAC natively. The default is 256 kbps.")
 
         configureWarningIcon(mp3Warning, tooltip: nil)
         configureCaption(mp3NoteLabel, text: "", width: Metrics.columnWidth - 24)
