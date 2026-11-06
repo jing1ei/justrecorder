@@ -23,8 +23,8 @@ jobs:
           - runtime: win-arm64
             architecture: arm64
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.1.0
         with:
           dotnet-version: '10.0.x'
       - name: Verify packaging failure paths
@@ -52,7 +52,7 @@ jobs:
       - name: Name Windows package
         shell: pwsh
         run: Copy-Item "build/windows/${{ matrix.runtime }}.zip" "build/windows/JustRecorder-1.0.0-Windows-${{ matrix.architecture }}.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: JustRecorder-1.0.0-Windows-${{ matrix.architecture }}
           if-no-files-found: error
