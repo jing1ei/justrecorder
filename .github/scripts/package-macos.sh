@@ -21,7 +21,7 @@ OUTPUT=$(cd "$OUTPUT" && pwd)
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/package-macos.XXXXXX")
 MOUNT="$STAGE/mount"
 cleanup() {
-  if mount | grep -Fq " on $MOUNT "; then hdiutil detach "$MOUNT" -quiet; fi
+  hdiutil detach "$MOUNT" -quiet >/dev/null 2>&1 || true
   rm -rf "$STAGE"
 }
 trap cleanup EXIT
