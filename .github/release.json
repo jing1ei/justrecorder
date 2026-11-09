@@ -1,11 +1,12 @@
 {
   "project": "JustRecorder",
   "assets": {
-    "JustRecorder-1.0.0-macOS-universal.zip": "JustRecorder-1.0.0-macOS-universal.zip",
-    "JustRecorder-1.0.0-Windows-x64.zip": "JustRecorder-1.0.0-Windows-x64.zip",
-    "JustRecorder-1.0.0-Windows-x86.zip": "JustRecorder-1.0.0-Windows-x86.zip",
-    "JustRecorder-1.0.0-Windows-arm64.zip": "JustRecorder-1.0.0-Windows-arm64.zip",
-    "JustRecorder-1.0.0-source.zip": "JustRecorder-1.0.0-source.zip"
+    "JustRecorder-{version}-macOS-arm64.dmg": "JustRecorder-{version}-macOS-arm64.dmg",
+    "JustRecorder-{version}-macOS-x64.dmg": "JustRecorder-{version}-macOS-x64.dmg",
+    "JustRecorder-{version}-Windows-x64.exe": "JustRecorder-{version}-Windows-x64.exe",
+    "JustRecorder-{version}-Windows-arm64.exe": "JustRecorder-{version}-Windows-arm64.exe",
+    "JustRecorder-{version}-Windows-x86.exe": "JustRecorder-{version}-Windows-x86.exe",
+    "JustRecorder-{version}-source.zip": "JustRecorder-{version}-source.zip"
   },
-  "notes": "Download the ZIP for your system. macOS universal supports Intel and Apple silicon. On Windows, choose x64 for 64-bit Intel or AMD, x86 for 32-bit Windows, or ARM64 for Windows on ARM. The source ZIP and SHA256SUMS.txt are also attached."
+  "notes": "JustRecorder. Choose the macOS arm64 DMG for Apple silicon or x64 DMG for Intel. Windows downloads are EXE installers for the named processor architecture. Source ZIP and SHA256SUMS.txt are included. See the README for installation and signing details."
 }

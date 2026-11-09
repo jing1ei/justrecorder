@@ -11,10 +11,25 @@ Record system audio with a shortcut. Press again to save a named clip. Capture n
 | Controls | Menu bar waveform | Notification area, including hidden icons |
 | Default save folder | Music → JustRecorder Captures | Music → JustRecorder Captures |
 
+## Download packages
+
+Choose the package for your computer from [GitHub Releases](https://github.com/jing1ei/justrecorder/releases/latest).
+
+| Computer | Package |
+| --- | --- |
+| Mac with Apple silicon | `JustRecorder-1.0.1-macOS-arm64.dmg` |
+| Mac with Intel | `JustRecorder-1.0.1-macOS-x64.dmg` |
+| Windows x64 | `JustRecorder-1.0.1-Windows-x64.exe` |
+| Windows ARM64 | `JustRecorder-1.0.1-Windows-arm64.exe` |
+| Windows 32-bit | `JustRecorder-1.0.1-Windows-x86.exe` |
+
+On macOS, open the DMG and drag the app to Applications. On Windows, run the EXE installer.
+Each release includes one source ZIP and `SHA256SUMS.txt`.
+
 ## Quick start
 
-1. Get the ZIP for your system from [GitHub Releases](https://github.com/jing1ei/justrecorder/releases/latest).
-2. On Mac, move `JustRecorder.app` to Applications and open it. On Windows, extract the entire ZIP and run `JustRecorder.exe`.
+1. Get the installer for your system from [GitHub Releases](https://github.com/jing1ei/justrecorder/releases/latest).
+2. On Mac, move `JustRecorder.app` to Applications and open it. On Windows, run the EXE installer and open JustRecorder from the Start menu.
 3. Play audio and start recording. If macOS prompts for screen or system audio access, grant it in System Settings, then quit and reopen JustRecorder.
 4. Stop recording with the same shortcut. Use **Reveal last recording** or **Open save folder** from the app menu.
 

@@ -23,6 +23,16 @@ jobs:
       - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
+      - name: Read application version
+        id: version
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import os, pathlib, plistlib
+          version = plistlib.loads(pathlib.Path('Resources/Info.plist').read_bytes())['CFBundleShortVersionString']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PYTHON
       - name: Verify source package
         run: |
           python3 Tests/test_source_release.py
@@ -37,14 +47,15 @@ jobs:
           python3 source-release.py
           codesign --verify --strict build/JustRecorder.app
           test -s build/JustRecorder.app/Contents/Resources/AppIcon.icns
-          ditto -c -k --keepParent build/JustRecorder.app build/JustRecorder-1.0.0-macOS-universal.zip
-          unzip -tq build/JustRecorder-1.0.0-macOS-universal.zip
-          unzip -tq build/JustRecorder-1.0.0-source.zip
+          for arch in arm64 x64; do
+            .github/scripts/package-macos.sh build/JustRecorder.app ${{ steps.version.outputs.version }} "$arch" build/downloads
+          done
+          unzip -tq build/JustRecorder-${{ steps.version.outputs.version }}-source.zip
       - uses: actions/upload-artifact@v7.0.2
         with:
-          name: JustRecorder-1.0.0-macOS-universal
+          name: JustRecorder-${{ steps.version.outputs.version }}-macOS
           if-no-files-found: error
           compression-level: 0
           path: |
-            build/JustRecorder-1.0.0-macOS-universal.zip
-            build/JustRecorder-1.0.0-source.zip
+            build/downloads/*.dmg
+            build/JustRecorder-${{ steps.version.outputs.version }}-source.zip

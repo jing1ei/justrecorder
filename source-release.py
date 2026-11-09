@@ -14,7 +14,7 @@ TREES = {
     'Sources': {'.swift'}, 'Tests': {'.swift', '.py', '.ps1'},
     'Resources': {'.plist', '.png', '.svg'},
     'Windows': {'.cs', '.csproj', '.props', '.manifest', '.ico', '.ps1', '.md', '.txt', '.png'},
-    'docs': {'.md', '.jpg'}, '.github': {'.yml'},
+    'docs': {'.md', '.jpg'}, '.github': {'.yml', '.json', '.py', '.ps1', '.sh', '.iss', '.md'},
 }
 EXCLUDE = {'bin', 'obj', '.git', '.build', 'build', '.DS_Store', '__pycache__'}
 
@@ -29,7 +29,7 @@ def source_files(root):
     for path in result:
         if not path.is_file() or path.is_symlink():
             raise ValueError(f'Missing or linked source file: {path}')
-    return sorted(result)
+    return sorted(set(result))
 
 def package(root=ROOT):
     files = source_files(root)
